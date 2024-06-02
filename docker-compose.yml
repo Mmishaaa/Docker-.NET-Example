@@ -1,0 +1,53 @@
+version: '3.4'
+
+services:
+  tinder.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Developmant
+      - ASPNETCORE_HTTP_PORTS=8081
+      - ASPNETCORE_HTTPS_PORTS=8080
+      - ASPNETCORE_URLS=https://+:443;http://+:80
+      # - ASPNETCORE_Kestrel__Certificates__Default__Password__Password=password
+      # - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/certificate.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=crypticpassword
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    container_name: tinder.api
+    image: ${DOCKER_REGISTRY-}tinderapi
+    build:
+      context: .
+      dockerfile: Tinder.API/Dockerfile
+    ports:
+      - "8080:443" 
+      - "8081:80" 
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    depends_on:
+      database.server:
+        condition: service_healthy
+    networks:
+      - my-network
+        
+  database.server:
+    image: "mcr.microsoft.com/mssql/server:2017-latest-ubuntu"
+    container_name: database.server
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=y
+      - SA_PASSWORD=Pass@word
+    networks:
+      - my-network
+    volumes:
+      - ./sqlserver/data:/var/opt/mssql/data
+      - ./sqlserver/data:/var/opt/mssql/log
+    
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Pass@word" -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+networks:
+  my-network:
+    driver: bridge
